@@ -2,6 +2,7 @@ from PIL import Image
 import numpy as np
 import io
 
+
 def image_to_byte_array(image:Image, format='PNG'):
   imgByteArr = io.BytesIO()
   image.save(imgByteArr, format=format)
