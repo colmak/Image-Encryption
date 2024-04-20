@@ -14,7 +14,7 @@ class TestAESEncryption(unittest.TestCase):
         self.state = self.np_array.reshape((4, 4))
 
 def test_sub_bytes(self):
-    # Define a known state
+    # A known state
     state = np.array([
         [0x32, 0x88, 0x31, 0xe0],
         [0x43, 0x5a, 0x31, 0x37],
@@ -22,10 +22,10 @@ def test_sub_bytes(self):
         [0xa8, 0x8d, 0xa2, 0x34]
     ])
 
-    # Apply the sub_bytes function
+    # Apply the sub_bytes
     result = AES.sub_bytes(state, AES.s_box)
 
-    # Define the expected result
+    # Expected result
     expected_result = np.array([
         [0xe5, 0x9c, 0x17, 0x2b],
         [0xd6, 0x12, 0x17, 0x39],
