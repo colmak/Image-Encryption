@@ -3,6 +3,8 @@ import numpy as np
 import io
 import re
 
+# reference
+# https://www.youtube.com/watch?v=O4xNJsjtN6E&ab_channel=Computerphile
 
 def image_to_byte_array(image:Image, format='PNG'):
   imgByteArr = io.BytesIO()
