@@ -78,6 +78,10 @@ def inv_sub_bytes(s):
 
 # ShiftRow stage
 def shift_rows(state):
+    # [00, 10, 20, 30]     [00, 10, 20, 30]
+    # [01, 11, 21, 31] <-- [11, 21, 31, 01]
+    # [02, 12, 22, 32]     [22, 32, 02, 12]
+    # [03, 13, 23, 33]     [33, 03, 13, 23]
     state[0][1], state[1][1], state[2][1], state[3][1] = state[1][1], state[2][1], state[3][1], state[0][1]
     state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
     state[0][3], state[1][3], state[2][3], state[3][3] = state[3][3], state[0][3], state[1][3], state[2][3]
