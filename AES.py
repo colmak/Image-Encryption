@@ -2,9 +2,11 @@ from PIL import Image
 import numpy as np
 import io
 import re
+from typing import List
 
 # reference
 # https://www.youtube.com/watch?v=O4xNJsjtN6E&ab_channel=Computerphile
+# https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197.pdf
 
 def image_to_byte_array(image:Image, format='PNG'):
   imgByteArr = io.BytesIO()
@@ -51,9 +53,16 @@ inv_s_box = [
 ]
 
 # Round constant used in KeyExpansion step
-rcon = [
-    [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36]
-]
+rcon = [[0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36]]
+
+def rot_word(word: List[int]) -> List[int]:
+    return word[1:] + word[:1]
+
+def sub_word(word: List[int]) -> List[int]:
+    return [s_box[byte // 0x10][byte % 0x10] for byte in word]
+
+def xor_bytes(bytes1: List[int], bytes2: List[int]) -> List[int]:
+    return [b1 ^ b2 for b1, b2 in zip(bytes1, bytes2)]
 
 def sub_bytes(s):
     for i in range(4):
@@ -78,10 +87,6 @@ def inv_sub_bytes(s):
 
 # ShiftRow stage
 def shift_rows(state):
-    # [00, 10, 20, 30]     [00, 10, 20, 30]
-    # [01, 11, 21, 31] <-- [11, 21, 31, 01]
-    # [02, 12, 22, 32]     [22, 32, 02, 12]
-    # [03, 13, 23, 33]     [33, 03, 13, 23]
     state[0][1], state[1][1], state[2][1], state[3][1] = state[1][1], state[2][1], state[3][1], state[0][1]
     state[0][2], state[1][2], state[2][2], state[3][2] = state[2][2], state[3][2], state[0][2], state[1][2]
     state[0][3], state[1][3], state[2][3], state[3][3] = state[3][3], state[0][3], state[1][3], state[2][3]
@@ -101,6 +106,35 @@ def mix_columns(state):
         state[i][2] = gmul(temp[2], 2) ^ gmul(temp[1], 1) ^ gmul(temp[0], 1) ^ gmul(temp[3], 3)
         state[i][3] = gmul(temp[3], 2) ^ gmul(temp[2], 1) ^ gmul(temp[1], 1) ^ gmul(temp[0], 3)
     return state
+
+def state_from_bytes(key: bytes) -> [[int]]: # type: ignore
+    return [list(key[i:i+4]) for i in range(0, len(key), 4)]
+
+
+def key_expansion(key: bytes, nb: int = 4) -> List[int]:
+
+    nk = len(key) // 4
+
+    key_bit_length = len(key) * 8
+
+    if key_bit_length != 128:
+        raise ValueError("Invalid key length. Only 128-bit keys are supported.")
+
+    nr = 10
+
+    w = state_from_bytes(key)
+
+    for i in range(nk, nb * (nr + 1)):
+        temp = w[i-1]
+        if i % nk == 0:
+            temp = xor_bytes(sub_word(rot_word(temp)), [rcon[0][i // nk]])
+        elif nk > 6 and i % nk == 4:
+            temp = sub_word(temp)
+        w.append(xor_bytes(w[i - nk], temp))
+
+    return [w[i*4:(i+1)*4] for i in range(len(w) // 4)]
+
+
 
 # AddRoundKey stage
 def add_round_key(state, round_key):
@@ -156,17 +190,27 @@ def encrypt(image_path, key):
 
 
 def main():
-    # Create a sample state
     state = np.array([[0x32, 0x88, 0x31, 0xe0],
-                      [0x43, 0x5a, 0x31, 0x37],
-                      [0xf6, 0x30, 0x98, 0x07],
-                      [0xa8, 0x8d, 0xa2, 0x34]])
+                    [0x43, 0x5a, 0x31, 0x37],
+                    [0xf6, 0x30, 0x98, 0x07],
+                    [0xa8, 0x8d, 0xa2, 0x34]])
+    key = b'This is a key123'  # This is a 16-byte (128-bit) key
+    # expanded_key = key_expansion(key)
 
-    # Apply the sub_bytes function
-    result = sub_bytes(state)
+    # Testing SubBytes
 
-    # Print the result
-    print(result)
+    # # Apply the sub_bytes function
+    # result = sub_bytes(state)
+
+    # # Print the result
+    # print(result)
+    
+    
+    # Testing Key expansion
+    expanded_key = key_expansion(key)
+    state = add_round_key(state, expanded_key)
+    
+    
 
 if __name__ == "__main__":
     main()
