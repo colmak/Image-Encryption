@@ -316,42 +316,42 @@ def aes_decryption(cipher: bytes, key: bytes) -> bytes:
     return plain
 
 
-def aes_cbc_encryption(plain: bytes, key: bytes, iv: bytes) -> bytes:
+def aes_cbc_encryption(plaintext: bytes, key: bytes, iv: bytes) -> bytes:
 
-    cipher = []
+    ciphertext = []
 
-    p_1 = plain[:16]
-    c_1 = aes_encryption(xor_bytes(p_1, iv), key)
-    cipher += c_1
+    first_block = plaintext[:16]
+    encrypted_first_block = aes_encryption(xor_bytes(first_block, iv), key)
+    ciphertext += encrypted_first_block
 
-    c_j_1 = c_1
-    for j in range(1, len(plain) // 16):
-        p_j = plain[j*16:(j+1)*16]
-        c_j = aes_encryption(xor_bytes(p_j, c_j_1), key)
-        cipher += c_j
-        c_j_1 = c_j
+    previous_ciphertext_block = encrypted_first_block
+    for block_index in range(1, len(plaintext) // 16):
+        plaintext_block = plaintext[block_index*16:(block_index+1)*16]
+        encrypted_block = aes_encryption(xor_bytes(plaintext_block, previous_ciphertext_block), key)
+        ciphertext += encrypted_block
+        previous_ciphertext_block = encrypted_block
 
-    return bytes(cipher)
+    return bytes(ciphertext)
 
 
-def aes_cbc_decryption(cipher: bytes, key: bytes, iv: bytes) -> bytes:
+def aes_cbc_decryption(ciphertext: bytes, key: bytes, iv: bytes) -> bytes:
 
-    plain = []
+    plaintext = []
 
-    c_1 = cipher[:16]
-    o_1 = aes_decryption(c_1, key)
-    p_1 = xor_bytes(o_1, iv)
-    plain += p_1
+    first_ciphertext_block = ciphertext[:16]
+    decrypted_first_block = aes_decryption(first_ciphertext_block, key)
+    plaintext_first_block = xor_bytes(decrypted_first_block, iv)
+    plaintext += plaintext_first_block
 
-    c_j_1 = c_1
-    for j in range(1, len(cipher) // 16):
-        c_j = cipher[j*16:(j+1)*16]
-        o_j = aes_decryption(c_j, key)
-        p_j = xor_bytes(o_j, c_j_1)
-        plain += p_j
-        c_j_1 = c_j
+    previous_ciphertext_block = first_ciphertext_block
+    for block_index in range(1, len(ciphertext) // 16):
+        ciphertext_block = ciphertext[block_index*16:(block_index+1)*16]
+        decrypted_block = aes_decryption(ciphertext_block, key)
+        plaintext_block = xor_bytes(decrypted_block, previous_ciphertext_block)
+        plaintext += plaintext_block
+        previous_ciphertext_block = ciphertext_block
 
-    return bytes(plain)
+    return bytes(plaintext)
 
 
 
