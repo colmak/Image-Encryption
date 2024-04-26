@@ -3,6 +3,7 @@ import numpy as np
 import io
 import re
 from typing import List
+import math
 
 # reference
 # https://www.youtube.com/watch?v=O4xNJsjtN6E&ab_channel=Computerphile
@@ -20,10 +21,19 @@ def image_to_byte_array(image:Image):
     # Convert bytes to bytearray before returning
     return bytearray(imgByteArr)
 
-def byte_array_to_image(byte_array, image_format='PNG'):
+
+def byte_array_to_image(byte_array, image_format='PNG',filename='recovered.png'):
     image = Image.open(io.BytesIO(byte_array))
+    image.save(filename, format=image_format)
     return image
 
+def encrpyted_byte_array_to_image(byte_array, mode='RGB', image_format='PNG', filename='test2.png'):
+    # Calculate the size of the image
+    size = int(math.sqrt(len(byte_array) / 3))  # Divide by 3 for RGB images
+
+    image = Image.frombytes(mode, (size, size), bytes(byte_array))
+    image.save(filename, format=image_format)
+    return image
 
 # Subsitiion table for the AES algorithm
 s_box = [
@@ -357,8 +367,21 @@ def aes_cbc_decryption(ciphertext: bytes, key: bytes, iv: bytes) -> bytes:
 
 if __name__ == "__main__":
     # Load an image and convert it to a byte array
-    # image = Image.open('test.png')
-    # plaintext = image_to_byte_array(image)
+    image = Image.open('test.png')
+    plaintext = image_to_byte_array(image)
+
+    # # Convert the byte array to a hexadecimal string
+    # hex_string = binascii.hexlify(plaintext).decode()
+
+    # # Split the hexadecimal string into chunks of 32 characters
+    # chunks = [hex_string[i:i+32] for i in range(0, len(hex_string), 32)]
+
+    # # Join the chunks with line breaks to match the given format
+    # formatted_hex_string = "'".join(chunks)
+
+    # # Add the opening and closing quotes
+    # formatted_hex_string = "'" + formatted_hex_string + "'"
+
     # print(f"Plaintext: {plaintext.hex()[:100]}...")
 
     # plaintext = bytearray.fromhex('00112233445566778899aabbccddeefd')
@@ -378,26 +401,32 @@ if __name__ == "__main__":
     # assert (recovered_plaintext == plaintext)
     
     # NIST Special Publication 800-38A
-    plaintext = bytearray.fromhex('6bc1bee22e409f96e93d7e117393172a'
-                                  'ae2d8a571e03ac9c9eb76fac45af8e51'
-                                  '30c81c46a35ce411e5fbc1191a0a52ef'
-                                  'f69f2445df4f9b17ad2b417be66c3710')
+    # plaintext = bytearray.fromhex('6bc1bee22e409f96e93d7e117393172a'
+    #                               'ae2d8a571e03ac9c9eb76fac45af8e51'
+    #                               '30c81c46a35ce411e5fbc1191a0a52ef'
+    #                               'f69f2445df4f9b17ad2b417be66c3710')
+    # print(plaintext)
 
     key = bytearray.fromhex('2b7e151628aed2a6abf7158809cf4f3c')
     
     iv = bytearray.fromhex('000102030405060708090a0b0c0d0e0f')
 
-    expected_ciphertext = bytearray.fromhex('7649abac8119b246cee98e9b12e9197d'
-                                            '5086cb9b507219ee95db113a917678b2'
-                                            '73bed6b8e3c1743b7116e69e22229516'
-                                            '3ff1caa1681fac09120eca307586e1a7')
+    # expected_ciphertext = bytearray.fromhex('7649abac8119b246cee98e9b12e9197d'
+    #                                         '5086cb9b507219ee95db113a917678b2'
+    #                                         '73bed6b8e3c1743b7116e69e22229516'
+    #                                         '3ff1caa1681fac09120eca307586e1a7')
     
     ciphertext = aes_cbc_encryption(plaintext, key, iv)
-    assert (ciphertext == expected_ciphertext)
-    print(f"Actual ciphertext: {ciphertext.hex()}")
-    print(f"Expected ciphertext: {expected_ciphertext.hex()}")
+    # print(f"Actual ciphertext: {ciphertext.hex()}")
+    # print(f"Expected ciphertext: {expected_ciphertext.hex()}")
+    # assert (ciphertext == expected_ciphertext)
+
 
     recovered_plaintext = aes_cbc_decryption(ciphertext, key, iv)
-    assert (recovered_plaintext == plaintext)
-    print(f"Actual plaintext:    {plaintext.hex()}")
-    print(f"Recovered plaintext: {recovered_plaintext.hex()}")
+    
+    ciphertext_image = encrpyted_byte_array_to_image(ciphertext, filename='encrypted.png')
+    recovered_image = byte_array_to_image(recovered_plaintext, filename='recovered.png')
+    
+    # assert (recovered_plaintext == plaintext)
+    # print(f"Actual plaintext:    {plaintext.hex()}")
+    # print(f"Recovered plaintext: {recovered_plaintext.hex()}")
