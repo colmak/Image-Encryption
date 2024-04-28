@@ -13,12 +13,6 @@ def image_to_byte_array(image:Image):
     imgByteArr = io.BytesIO()
     image.save(imgByteArr, format='PNG')
     imgByteArr = imgByteArr.getvalue()
-
-    # # Add padding if necessary
-    # while len(imgByteArr) % 16 != 0:
-    #     imgByteArr += b'\x00'
-
-    # Convert bytes to bytearray before returning
     return bytearray(imgByteArr)
 
 
