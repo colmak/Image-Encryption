@@ -334,24 +334,38 @@ def pad_bits(bits, bit_len=64):
     pad = bit_len - len(bits) % bit_len
     if len(bits) % bit_len != 0:
         bits.extend([0 for i in range(pad)])
-    return bits
+    return bits 
+
+# Convert bytes to string
+def bytes_to_string(byte_list):
+    binary_string = ''.join(map(str, byte_list))
+    text = ''.join(chr(int(binary_string[i:i+8], 2)) for i in range(0, len(binary_string), 8))
+    return text
+
+# Convert encrypted bytes to string
+def encrypted_to_string(encrypted):
+    byte_string = bytes(encrypted)
+    binary_string = ''.join(format(byte, '08b') for byte in byte_string)
+    text = ''.join(chr(int(binary_string[i:i+8], 2)) for i in range(0, len(binary_string), 8))[:len(encrypted)]
+    return text
 
 
 if __name__ == '__main__':
-    key_str = 'key'
+    key_str = 'key!'
     key = convert_key_to_bits(key_str)
     iv = [random.choice([0, 1]) for _ in range(64)]
 
-    text_str = "this is a test string to see if this works wowee! \
-                this is so cool! I can't believe it's working!"
+    text_str = "this is a test string to see if this works wowee! this is so cool! I can't believe it's working!"
     
     text = convert_string_to_bits(text_str)
     text = pad_bits(text)
 
     encrypted = des_cbc_enc(iv, key, text)
+    
+    print("string: ", encrypted_to_string(encrypted))
+
     decrypted = des_cbc_dec(iv, key, encrypted)
     
-    binary_string = ''.join(map(str, decrypted))
-    text = ''.join(chr(int(binary_string[i:i+8], 2)) for i in range(0, len(binary_string), 8))
+    text = bytes_to_string(decrypted)
     print("text: ", text)
     
