@@ -1,3 +1,4 @@
+import os
 from PIL import Image
 import numpy as np
 import io
@@ -18,16 +19,18 @@ def image_to_byte_array(image:Image):
 
 def byte_array_to_image(byte_array, image_format='PNG',filename='recovered.png'):
     image = Image.open(io.BytesIO(byte_array))
-    image.save(filename, format=image_format)
-    return image
+    image_path = os.path.join(os.getcwd(), filename)
+    image.save(image_path)
+    return image_path
 
 def encrpyted_byte_array_to_image(byte_array, mode='RGB', image_format='PNG', filename='test2.png'):
     # Calculate the size of the image
-    size = int(math.sqrt(len(byte_array) / 3))  # Divide by 3 for RGB images
-
+    size = int(math.sqrt(len(byte_array) / 3)) 
+    
     image = Image.frombytes(mode, (size, size), bytes(byte_array))
-    image.save(filename, format=image_format)
-    return image
+    image_path = os.path.join(os.getcwd(), filename)
+    image.save(image_path)
+    return image_path
 
 # Subsitiion table for the AES algorithm
 s_box = [

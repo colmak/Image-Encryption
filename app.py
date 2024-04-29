@@ -1,3 +1,5 @@
+import os
+import random
 import sys
 import numpy as np
 
@@ -21,41 +23,38 @@ class ImageEncryptor(QWidget):
 
     def initUI(self):
             """Initialize the user interface."""
-            self.setWindowTitle('Image Encryptor')
-            self.setGeometry(100, 100, 800, 600)
-
-            self.layout = QGridLayout()
+            self.layout = QVBoxLayout()
             self.layout.setContentsMargins(10, 10, 10, 10)  # Add margins
             self.setLayout(self.layout)
 
             self.uploadButton = QPushButton('Upload Image')
             self.uploadButton.clicked.connect(self.uploadImage)
             self.uploadButton.setStyleSheet("font-size: 20px")
+            self.layout.addWidget(self.uploadButton)
 
-            # Add spacers on either side of the button
-            self.layout.addItem(QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Fixed), 0, 0)
-            self.layout.addWidget(self.uploadButton, 0, 1)
-            self.layout.addItem(QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Fixed), 0, 2)
-
-
-            self.encryptButton = QPushButton('Encrypt Image')
-            self.encryptButton.setIcon(QIcon('encrypt_icon.png'))  # Add icon
-            self.encryptButton.clicked.connect(self.encryptImage)
+            self.encryptButton = QPushButton('Encrypt and Decrypt Image')
+            self.encryptButton.clicked.connect(self.encryptAndDecryptImage)
             self.encryptButton.hide()
-            self.layout.addWidget(self.encryptButton, 1, 0)  # Position in grid
+            self.layout.addWidget(self.encryptButton)
             self.encryptButton.setStyleSheet("font-size: 20px")
-
-            self.decryptButton = QPushButton('Decrypt Image')
-            self.decryptButton.setIcon(QIcon('decrypt_icon.png'))  # Add icon
-            self.decryptButton.clicked.connect(self.decryptImage)
-            self.decryptButton.hide()
-            self.layout.addWidget(self.decryptButton, 2, 0)  # Position in grid
-            self.decryptButton.setStyleSheet("font-size: 20px")
+            
+            self.nextButton = QPushButton('Next')
+            self.nextButton.clicked.connect(self.showNextImage)
+            self.nextButton.hide()
+            self.layout.addWidget(self.nextButton)
+            self.nextButton.setStyleSheet("font-size: 20px")
 
             self.imageLabel = QLabel()
-            self.imageLabel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)  # Allow label to expand
-            self.layout.addWidget(self.imageLabel, 0, 1, 3, 1)  # Span across rows
+            self.imageLabel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding) 
+            self.layout.addWidget(self.imageLabel)
             self.imageLabel.setStyleSheet("font-size: 20px")
+            
+            self.recoveredImageLabel = QLabel("Recovered Image")
+            self.recoveredImageLabel.hide()
+            self.layout.addWidget(self.recoveredImageLabel)
+            self.recoveredImageLabel.setStyleSheet("font-size: 20px")
+
+
 
     def uploadImage(self):
         """Upload an image."""
@@ -66,17 +65,47 @@ class ImageEncryptor(QWidget):
             pixmap = QPixmap(fileName)
             self.imageLabel.setPixmap(pixmap)
             self.encryptButton.show()
-            self.decryptButton.show()
             self.uploadButton.hide()
+            self.uploadedImagePath = fileName 
 
-    def encryptImage(self):
-        """Encrypt an image."""
-        pass
+    def encryptAndDecryptImage(self):
+            """Encrypt and decrypt an image."""
+            if self.uploadedImagePath is None:
+                print('No image uploaded')
+                return
 
-    def decryptImage(self):
-        """Decrypt an image."""
-        pass
+            print('Encrypting image...')
+            image = Image.open(self.uploadedImagePath)  
+            plaintext = AES.image_to_byte_array(image)
+            
+            key = bytearray.fromhex('2b7e151628aed2a6abf7158809cf4f3c')
+            iv = bytearray.fromhex('000102030405060708090a0b0c0d0e0f')
+            
+            ciphertext = AES.aes_cbc_encryption(plaintext, key, iv)
+            recovered_plaintext = AES.aes_cbc_decryption(ciphertext, key, iv)
 
+            # Generate a filename based on the uploaded image and two random digits
+            base_name = os.path.basename(self.uploadedImagePath)
+            base_name_without_ext = os.path.splitext(base_name)[0]
+            random_digits = random.randint(10, 99)  # Generate two random digits
+            new_filename = f"{base_name_without_ext}_{random_digits}"
+
+            self.encryptedImagePath = AES.encrpyted_byte_array_to_image(ciphertext, filename=f'{new_filename}_encrypted.png')
+            self.recoveredImagePath = AES.byte_array_to_image(recovered_plaintext, filename=f'{new_filename}_recovered.png')
+
+            # Show the encrypted image
+            self.imageLabel.setPixmap(QPixmap(self.encryptedImagePath))
+            self.encryptButton.hide()
+            self.nextButton.show()
+
+            print('Encrypting complete')
+            
+    def showNextImage(self):
+        """Show the next image."""
+        if self.recoveredImagePath is not None:
+            self.imageLabel.setPixmap(QPixmap(self.recoveredImagePath))
+            self.nextButton.hide()
+            self.recoveredImageLabel.show()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
