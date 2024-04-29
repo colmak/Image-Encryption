@@ -3,7 +3,7 @@ import random
 import sys
 
 from PIL import Image
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QFileDialog, QSizePolicy
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QFileDialog, QSizePolicy, QLineEdit
 from PyQt5.QtGui import QPixmap
 
 import AES
@@ -24,9 +24,20 @@ class ImageEncryptor(QWidget):
             self.layout = QVBoxLayout()
             self.layout.setContentsMargins(10, 10, 10, 10)  # Add margins
             self.setLayout(self.layout)
+            
+            self.aesButton = QPushButton('AES Encryption')
+            self.aesButton.clicked.connect(self.aesStart)
+            self.aesButton.setStyleSheet("font-size: 20px")
+            self.layout.addWidget(self.aesButton)
 
+            self.desButton = QPushButton('DES Encryption')
+            self.desButton.clicked.connect(self.desEncryption)
+            self.desButton.setStyleSheet("font-size: 20px")
+            self.layout.addWidget(self.desButton)
+            
             self.uploadButton = QPushButton('Upload Image')
             self.uploadButton.clicked.connect(self.uploadImage)
+            self.uploadButton.hide()
             self.uploadButton.setStyleSheet("font-size: 20px")
             self.layout.addWidget(self.uploadButton)
 
@@ -51,8 +62,37 @@ class ImageEncryptor(QWidget):
             self.recoveredImageLabel.hide()
             self.layout.addWidget(self.recoveredImageLabel)
             self.recoveredImageLabel.setStyleSheet("font-size: 20px")
+            
+            self.textBox = QLineEdit()
+            self.textBox.hide()
+            self.layout.addWidget(self.textBox)
+            self.textBox.setStyleSheet("font-size: 20px")
 
+            self.encryptTextButton = QPushButton('Encrypt Text')
+            self.encryptTextButton.clicked.connect(self.encryptText)
+            self.encryptTextButton.hide()
+            self.layout.addWidget(self.encryptTextButton)
+            self.encryptTextButton.setStyleSheet("font-size: 20px")
+                    
 
+    def aesStart(self):
+        self.aesButton.hide()
+        self.desButton.hide()
+        self.uploadButton.show()
+        
+    def desEncryption(self):
+        print('DES Encryption')
+        self.aesButton.hide()
+        self.desButton.hide()
+        self.textBox.show()
+        self.encryptTextButton.show()
+        
+    def encryptText(self):
+        """Encrypt the text from the text box."""
+        text = self.textBox.text()
+        # Perform the encryption here
+        encrypted_text = text  # Replace this with actual encryption
+        print(f"Encrypted text: {encrypted_text}")
 
     def uploadImage(self):
         """Upload an image."""
