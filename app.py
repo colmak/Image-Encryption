@@ -9,7 +9,6 @@ from PyQt5.QtGui import QPixmap
 import AES
 
 
-
 class ImageEncryptor(QWidget):
     """A class to represent an image encryptor widget."""
 
