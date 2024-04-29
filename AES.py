@@ -1,3 +1,5 @@
+from collections import deque
+import operator
 import os
 from PIL import Image
 import numpy as np
@@ -9,6 +11,7 @@ import math
 # reference
 # https://www.youtube.com/watch?v=O4xNJsjtN6E&ab_channel=Computerphile
 # https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197.pdf
+# 
 
 def image_to_byte_array(image:Image):
     imgByteArr = io.BytesIO()
@@ -26,7 +29,6 @@ def byte_array_to_image(byte_array, image_format='PNG',filename='recovered.png')
 def encrpyted_byte_array_to_image(byte_array, mode='RGB', image_format='PNG', filename='test2.png'):
     # Calculate the size of the image
     size = int(math.sqrt(len(byte_array) / 3)) 
-    
     image = Image.frombytes(mode, (size, size), bytes(byte_array))
     image_path = os.path.join(os.getcwd(), filename)
     image.save(image_path)
@@ -64,14 +66,22 @@ def sub_word(word: List[int]) -> bytes:
 
 
 def rcon(i: int) -> bytes:
-    """
-    This function returns the round constant for a given round in the AES algorithm.
-    The round constants are a series of values derived from the powers of 2 in the Galois field.
-    These constants are used in the key expansion phase of the AES algorithm.
-    """
-    rcon_lookup = bytearray.fromhex('01020408102040801b36')
-    rcon_value = bytes([rcon_lookup[i-1], 0, 0, 0])
-    return rcon_value
+    """Calculate the round constant for a given round in the AES algorithm."""
+    rcon_lookup = [
+        bytes([0, 0, 0, 0]),
+        bytes([1, 0, 0, 0]),
+        bytes([2, 0, 0, 0]),
+        bytes([4, 0, 0, 0]),
+        bytes([8, 0, 0, 0]),
+        bytes([16, 0, 0, 0]),
+        bytes([32, 0, 0, 0]),
+        bytes([64, 0, 0, 0]),
+        bytes([128, 0, 0, 0]),
+        bytes([27, 0, 0, 0]),
+        bytes([54, 0, 0, 0]),
+    ]
+
+    return rcon_lookup[i]
 
 
 def xor_bytes(a: bytes, b: bytes) -> bytes:
@@ -79,7 +89,7 @@ def xor_bytes(a: bytes, b: bytes) -> bytes:
     This function takes two bytes objects as input and returns a new bytes object
     that is the result of a bitwise XOR operation on the input bytes.
     """
-    return bytes([x ^ y for (x, y) in zip(a, b)])
+    return bytes(map(operator.xor, a, b))
 
 
 def rot_word(word: List[int]) -> List[int]:
@@ -87,33 +97,36 @@ def rot_word(word: List[int]) -> List[int]:
     This function takes a list of integers (word) and rotates it to the left.
     The first element moves to the end of the list, and all other elements move one position to the left.
     """
-    return word[1:] + word[:1]
+    d = deque(word)
+    d.rotate(-1)
+    return list(d)
 
 
-def key_expansion(key: bytes, nb: int = 4) -> List[List[List[int]]]:
+def key_expansion(key: bytes, num_columns: int = 4) -> List[List[List[int]]]:
 
-    nk = len(key) // 4
+    """
+    Performs the key expansion step of the AES algorithm. 
+    Takes a key (bytes) and number of columns in the state (default 4) as input. 
+    Expands the key into a key schedule, a list of round keys. 
+    The key expansion involves deriving an initial state from the key 
+    and then generating additional words based on the key length and their position in the key schedule. 
 
-    key_bit_length = len(key) * 8
+    """
+    key_length = len(key) // 4
 
-    if key_bit_length == 128:
-        nr = 10
-    elif key_bit_length == 192:
-        nr = 12
-    else:  # 256-bit keys
-        nr = 14
+    num_rounds = 10
+    
+    state = state_from_bytes(key)
 
-    w = state_from_bytes(key)
+    for index in range(key_length, num_columns * (num_rounds + 1)):
+        temp_word = state[index-1]
+        if index % key_length == 0:
+            temp_word = xor_bytes(sub_word(rot_word(temp_word)), rcon(index // key_length))
+        elif key_length > 6 and index % key_length == 4:
+            temp_word = sub_word(temp_word)
+        state.append(xor_bytes(state[index - key_length], temp_word))
 
-    for i in range(nk, nb * (nr + 1)):
-        temp = w[i-1]
-        if i % nk == 0:
-            temp = xor_bytes(sub_word(rot_word(temp)), rcon(i // nk))
-        elif nk > 6 and i % nk == 4:
-            temp = sub_word(temp)
-        w.append(xor_bytes(w[i - nk], temp))
-
-    return [w[i*4:(i+1)*4] for i in range(len(w) // 4)]
+    return [state[i*4:(i+1)*4] for i in range(len(state) // 4)]
 
 
 def add_round_key(state: List[List[int]], key_schedule: List[List[List[int]]], round: int):
@@ -125,7 +138,7 @@ def add_round_key(state: List[List[int]], key_schedule: List[List[List[int]]], r
     """
     round_key = key_schedule[round]
     for r in range(len(state)):
-        state[r] = [state[r][c] ^ round_key[r][c] for c in range(len(state[0]))]
+        state[r] = [s ^ k for s, k in zip(state[r], round_key[r])]
 
 def sub_bytes(state: List[List[int]]):
     """
@@ -135,7 +148,7 @@ def sub_bytes(state: List[List[int]]):
     The state is modified in-place.
     """
     for r in range(len(state)):
-        state[r] = [s_box[state[r][c]] for c in range(len(state[0]))]
+        state[r] = list(map(lambda c: s_box[c], state[r]))
         
         
 
@@ -158,21 +171,35 @@ def xtime(a: int) -> int:
     If the input integer is greater than 127 (0x7F), it also performs a bitwise XOR with 0x1B and masks the result to 1 byte.
     """
     if a & 0x80:
+        # If the 8th bit is set, shift 'a' to the left by 1 (i.e., multiply it by 2),
+        # perform a bitwise XOR with 0x1B, and mask the result to 1 byte
         return ((a << 1) ^ 0x1b) & 0xff
-    return a << 1
+    else:
+        # If the 8th bit is not set, simply shift 'a' to the left by 1 (i.e., multiply it by 2)
+        return a << 1
 
 
 def mix_column(col: List[int]):
-    c_0 = col[0]
-    all_xor = col[0] ^ col[1] ^ col[2] ^ col[3]
-    col[0] ^= all_xor ^ xtime(col[0] ^ col[1])
-    col[1] ^= all_xor ^ xtime(col[1] ^ col[2])
-    col[2] ^= all_xor ^ xtime(col[2] ^ col[3])
-    col[3] ^= all_xor ^ xtime(c_0 ^ col[3])
+    """
+    Performs the mix_column operation in the AES encryption algorithm.
+    
+    The function takes a column of the state matrix as input and applies a series of XOR and xtime operations 
+    to each element. The result is a new column where each element is influenced by all elements of the input column, 
+    providing the diffusion property of the AES algorithm.
+    """
+    first_element = col[0]
+    xor_of_all_elements = col[0] ^ col[1] ^ col[2] ^ col[3]
+    col[0] ^= xor_of_all_elements ^ xtime(col[0] ^ col[1])
+    col[1] ^= xor_of_all_elements ^ xtime(col[1] ^ col[2])
+    col[2] ^= xor_of_all_elements ^ xtime(col[2] ^ col[3])
+    col[3] ^= xor_of_all_elements ^ xtime(first_element ^ col[3])
 
 
 
 def mix_columns(state: List[List[int]]):
+    """
+    Mix all columns of the state matrix using the mix_column operation.
+    """
     for r in state:
         mix_column(r)
 
@@ -182,7 +209,7 @@ def state_from_bytes(data: bytes) -> List[List[int]]:
     """
     Converts a byte array into a list of 4-byte blocks.
 
-    This function takes a byte array as input and returns a list of byte arrays,
+    Takes a byte array as input and returns a list of byte arrays,
     each of length 4. Dividing the input byte array into blocks of 4 bytes
     """
     state = [data[i*4:(i+1)*4] for i in range(len(data) // 4)]
@@ -190,10 +217,26 @@ def state_from_bytes(data: bytes) -> List[List[int]]:
 
 
 def bytes_from_state(state: List[List[int]]) -> bytes:
+    """
+    Return a byte array from a state matrix.
+    """
     return bytes(state[0] + state[1] + state[2] + state[3])
 
 
 def aes_encryption(data: bytes, key: bytes) -> bytes:
+    """
+    AES encryption algorithm.
+    10 rounds for 128-bit key.
+    for each round:
+        - sub_bytes
+        - shift_rows
+        - mix_columns
+        - add_round_key
+    and final round
+        - sub_bytes
+        - shift_rows
+        - add_round_key
+    """
 
     nr = 10
 
@@ -218,16 +261,15 @@ def aes_encryption(data: bytes, key: bytes) -> bytes:
 
 
 def inv_shift_rows(state: List[List[int]]) -> List[List[int]]:
-    # [00, 10, 20, 30]     [00, 10, 20, 30]
-    # [01, 11, 21, 31] <-- [11, 21, 31, 01]
-    # [02, 12, 22, 32]     [22, 32, 02, 12]
-    # [03, 13, 23, 33]     [33, 03, 13, 23]
+    """
+    Perform the inverse ShiftRows operation on the state matrix.
+    """
     state[1][1], state[2][1], state[3][1], state[0][1] = state[0][1], state[1][1], state[2][1], state[3][1]
     state[2][2], state[3][2], state[0][2], state[1][2] = state[0][2], state[1][2], state[2][2], state[3][2]
     state[3][3], state[0][3], state[1][3], state[2][3] = state[0][3], state[1][3], state[2][3], state[3][3]
     return
 
-                   
+# Inverse S-box for the AES algorithm                   
 inv_s_box = [
     0x52, 0x09, 0x6A, 0xD5, 0x30, 0x36, 0xA5, 0x38, 0xBF, 0x40, 0xA3, 0x9E, 0x81, 0xF3, 0xD7, 0xFB,
     0x7C, 0xE3, 0x39, 0x82, 0x9B, 0x2F, 0xFF, 0x87, 0x34, 0x8E, 0x43, 0x44, 0xC4, 0xDE, 0xE9, 0xCB,
@@ -250,59 +292,68 @@ inv_s_box = [
 
 
 def inv_sub_bytes(state: List[List[int]]) -> List[List[int]]:
+    """
+    Inverse SubBytes operation in the AES decryption algorithm.
+    """
     for r in range(len(state)):
         state[r] = [inv_s_box[state[r][c]] for c in range(len(state[0]))]
 
 
-def xtimes_0e(b):
-    # 0x0e = 14 = b1110 = ((x * 2 + x) * 2 + x) * 2
-    return xtime(xtime(xtime(b) ^ b) ^ b)
+def xtimes(b: int, op: str):
+    """
+    xtimes operation in the AES decryption algorithm.
+    Xtimes is a multiplication operation in the Galois field.
+    """
+    if op == '0e':
+        # 0x0e = 14 = b1110 = ((x * 2 + x) * 2 + x) * 2
+        return xtime(xtime(xtime(b) ^ b) ^ b)
+    elif op == '0b':
+        # 0x0b = 11 = b1011 = ((x*2)*2+x)*2+x
+        return xtime(xtime(xtime(b)) ^ b) ^ b
+    elif op == '0d':
+        # 0x0d = 13 = b1101 = ((x*2+x)*2)*2+x
+        return xtime(xtime(xtime(b) ^ b)) ^ b
+    elif op == '09':
+        # 0x09 = 9  = b1001 = ((x*2)*2)*2+x
+        return xtime(xtime(xtime(b))) ^ b
+    else:
+        raise ValueError("Invalid operation")
 
-
-def xtimes_0b(b):
-    # 0x0b = 11 = b1011 = ((x*2)*2+x)*2+x
-    return xtime(xtime(xtime(b)) ^ b) ^ b
-
-
-def xtimes_0d(b):
-    # 0x0d = 13 = b1101 = ((x*2+x)*2)*2+x
-    return xtime(xtime(xtime(b) ^ b)) ^ b
-
-
-def xtimes_09(b):
-    # 0x09 = 9  = b1001 = ((x*2)*2)*2+x
-    return xtime(xtime(xtime(b))) ^ b
 
 
 def inv_mix_column(col: List[int]):
+    """
+    Inverse mix_column operation in the AES decryption algorithm.
+    """
     c_0, c_1, c_2, c_3 = col[0], col[1], col[2], col[3]
-    col[0] = xtimes_0e(c_0) ^ xtimes_0b(c_1) ^ xtimes_0d(c_2) ^ xtimes_09(c_3)
-    col[1] = xtimes_09(c_0) ^ xtimes_0e(c_1) ^ xtimes_0b(c_2) ^ xtimes_0d(c_3)
-    col[2] = xtimes_0d(c_0) ^ xtimes_09(c_1) ^ xtimes_0e(c_2) ^ xtimes_0b(c_3)
-    col[3] = xtimes_0b(c_0) ^ xtimes_0d(c_1) ^ xtimes_09(c_2) ^ xtimes_0e(c_3)
+    col[0] = xtimes(c_0, '0e') ^ xtimes(c_1, '0b') ^ xtimes(c_2, '0d') ^ xtimes(c_3, '09')
+    col[1] = xtimes(c_0, '09') ^ xtimes(c_1, '0e') ^ xtimes(c_2, '0b') ^ xtimes(c_3, '0d')
+    col[2] = xtimes(c_0, '0d') ^ xtimes(c_1, '09') ^ xtimes(c_2, '0e') ^ xtimes(c_3, '0b')
+    col[3] = xtimes(c_0, '0b') ^ xtimes(c_1, '0d') ^ xtimes(c_2, '09') ^ xtimes(c_3, '0e')
 
 
 def inv_mix_columns(state: List[List[int]]) -> List[List[int]]:
+    """
+    Inverse mix_columns operation in the AES decryption algorithm.
+    """
     for r in state:
         inv_mix_column(r)
 
-
-def inv_mix_column_optimized(col: List[int]):
-    u = xtime(xtime(col[0] ^ col[2]))
-    v = xtime(xtime(col[1] ^ col[3]))
-    col[0] ^= u
-    col[1] ^= v
-    col[2] ^= u
-    col[3] ^= v
-
-
-def inv_mix_columns_optimized(state: List[List[int]]) -> List[List[int]]:
-    for r in state:
-        inv_mix_column_optimized(r)
-    mix_columns(state)
-
-
 def aes_decryption(cipher: bytes, key: bytes) -> bytes:
+    """
+    AES decryption algorithm.
+    10 rounds for 128-bit key.
+    for each round:
+        - inv_shift_rows
+        - inv_sub_bytes
+        - add_round_key
+        - inv_mix_columns
+    and final round
+        - inv_shift_rows
+        - inv_sub_bytes
+        - add_round_key
+    """
+    
     nr = 10
 
     state = state_from_bytes(cipher)
@@ -324,6 +375,15 @@ def aes_decryption(cipher: bytes, key: bytes) -> bytes:
 
 
 def aes_cbc_encryption(plaintext: bytes, key: bytes, iv: bytes) -> bytes:
+    """
+    AES encryption in CBC mode.
+    1. Divide the plaintext into blocks of 16 bytes.
+    2. XOR the first block with the IV.
+    3. Encrypt the XORed block using AES.
+    4. XOR the encrypted block with the IV.
+    5. Repeat steps 2-4 for the remaining blocks.
+    6. Return the ciphertext.
+    """
 
     ciphertext = []
 
@@ -342,6 +402,14 @@ def aes_cbc_encryption(plaintext: bytes, key: bytes, iv: bytes) -> bytes:
 
 
 def aes_cbc_decryption(ciphertext: bytes, key: bytes, iv: bytes) -> bytes:
+    """
+    AES decryption in CBC mode.
+    1. Divide the ciphertext into blocks of 16 bytes.
+    2. Decrypt the first block using AES.
+    3. XOR the decrypted block with the IV.
+    4. Repeat steps 2-3 for the remaining blocks.
+    5. Return the plaintext.
+    """
 
     plaintext = []
 
