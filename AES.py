@@ -1,3 +1,9 @@
+"""
+AES Encryption and Decryption in CBC Mode
+By Roland Van Duine
+"""
+
+
 from collections import deque
 import operator
 import os
@@ -11,9 +17,12 @@ import math
 # reference
 # https://www.youtube.com/watch?v=O4xNJsjtN6E&ab_channel=Computerphile
 # https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.197.pdf
-# 
+# https://www.youtube.com/watch?v=vVtYYMU3koM&ab_channel=CyrillG%C3%B6ssi
 
 def image_to_byte_array(image:Image):
+    """
+    Image to byte array
+    """
     imgByteArr = io.BytesIO()
     image.save(imgByteArr, format='PNG')
     imgByteArr = imgByteArr.getvalue()
@@ -21,13 +30,18 @@ def image_to_byte_array(image:Image):
 
 
 def byte_array_to_image(byte_array, image_format='PNG',filename='recovered.png'):
+    """
+    Byte array to image
+    """
     image = Image.open(io.BytesIO(byte_array))
     image_path = os.path.join(os.getcwd(), filename)
     image.save(image_path)
     return image_path
 
 def encrpyted_byte_array_to_image(byte_array, mode='RGB', image_format='PNG', filename='test2.png'):
-    # Calculate the size of the image
+    """
+    Encrypted byte array to image
+    """
     size = int(math.sqrt(len(byte_array) / 3)) 
     image = Image.frombytes(mode, (size, size), bytes(byte_array))
     image_path = os.path.join(os.getcwd(), filename)
