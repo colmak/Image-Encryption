@@ -1,12 +1,10 @@
 import os
 import random
 import sys
-import numpy as np
 
 from PIL import Image
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QFileDialog, QGridLayout, QSizePolicy, QSpacerItem
-from PyQt5.QtGui import QPixmap, QImage, QIcon
-from PyQt5.QtCore import Qt, QBuffer
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QFileDialog, QSizePolicy
+from PyQt5.QtGui import QPixmap
 
 import AES
 
