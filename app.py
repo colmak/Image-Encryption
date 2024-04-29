@@ -148,7 +148,7 @@ class ImageEncryptor(QWidget):
             random_digits = random.randint(10, 99)  # Generate two random digits
             new_filename = f"{base_name_without_ext}_{random_digits}"
 
-            self.encryptedImagePath = AES.encrpyted_byte_array_to_image(ciphertext, filename=f'{new_filename}_encrypted.png')
+            self.encryptedImagePath = AES.encrpyted_byte_array_to_image(ciphertext, image.size, filename=f'{new_filename}_encrypted.png')
             self.recoveredImagePath = AES.byte_array_to_image(recovered_plaintext, filename=f'{new_filename}_recovered.png')
 
             # Show the encrypted image

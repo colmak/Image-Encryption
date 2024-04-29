@@ -35,14 +35,17 @@ def byte_array_to_image(byte_array, image_format='PNG',filename='recovered.png')
     image.save(image_path)
     return image_path
 
-def encrpyted_byte_array_to_image(byte_array, mode='RGB', image_format='PNG', filename='test2.png'):
+def encrpyted_byte_array_to_image(byte_array, original_image_size, mode='RGB', image_format='PNG', filename='test2.png'):
     """
     Encrypted byte array to image
     """
-    size = int(math.sqrt(len(byte_array) / 3)) 
-    image = Image.frombytes(mode, (size, size), bytes(byte_array))
+    required_size = original_image_size[0] * original_image_size[1] * 3  # 3 for RGB
+    while len(byte_array) < required_size:
+        byte_array += byte_array[:required_size - len(byte_array)]
+    
+    image = Image.frombytes(mode, original_image_size, bytes(byte_array))
     image_path = os.path.join(os.getcwd(), filename)
-    image.save(image_path)
+    image.save(image_path, format=image_format)
     return image_path
 
 # Subsitiion table for the AES algorithm
@@ -486,7 +489,7 @@ if __name__ == "__main__":
 
     recovered_plaintext = aes_cbc_decryption(ciphertext, key, iv)
     
-    ciphertext_image = encrpyted_byte_array_to_image(ciphertext, filename='encrypted.png')
+    ciphertext_image = encrpyted_byte_array_to_image(ciphertext, image.size, filename='encrypted.png')
     recovered_image = byte_array_to_image(recovered_plaintext, filename='recovered.png')
     
     # assert (recovered_plaintext == plaintext)
