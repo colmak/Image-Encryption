@@ -3,20 +3,43 @@ import numpy as np
 import io
 from des import DesKey
 
-def image_to_byte_array(image:Image, format='PNG'):
-  imgByteArr = io.BytesIO()
-  image.save(imgByteArr, format=format)
-  imgByteArr = imgByteArr.getvalue()
-  return imgByteArr
+def image_to_byte_array(image:Image, dimensions, format='PNG', block_size=64):
+    imgByteArr = io.BytesIO()
+    image.save(imgByteArr, format=format)
+    imgByteArr = imgByteArr.getvalue()
+
+    # Add padding if necessary
+    pad_len = len(imgByteArr) % block_size//8
+    for i in range(pad_len):
+        imgByteArr += b'\x00'
+    # Add infomation block about padding and image size
+    width, height = dimensions
+    info_block = bytearray()
+    info_block += width.to_bytes(2, byteorder='big')
+    info_block += height.to_bytes(2, byteorder='big')
+    info_block += pad_len.to_bytes(1, byteorder='big')
+
+    info_pad = (block_size // 8) - len(info_block)
+    for i in range(info_pad):
+        info_block += b'\x00'
+
+    imgByteArr = imgByteArr + info_block
+    
+    return imgByteArr
 
 
 def load_image_bytes(image_path):
     # Open the image and convert it to byte array
     image = Image.open(image_path)
-    byte_array = image_to_byte_array(image)
+    # Get image size
+    width, height = image.size
+
+    byte_array = image_to_byte_array(image, (width, height))
 
     # Convert the byte array to a numpy array
     np_array = np.frombuffer(byte_array, dtype=np.uint8)
+    #img_format = image.format
+
     return np_array
 
 
@@ -33,7 +56,7 @@ def key_permutation(key):
         13, 5, 60, 52, 44, 36, 28,
         20, 12, 4, 27, 19, 11, 3
     ]
-   
+
     permuted = [key[i] for i in PC_1]
     return permuted
 
@@ -246,20 +269,25 @@ def des(key, pt_block, mode='encrypt'):
 
 
 def des_cbc(iv, key, text, mode='encrypt'):
+    print(len(text))
     # Convert key to binary and pad with zeros
     bin_key = ''.join([bin(byte)[2:].zfill(8) for byte in key])
     bin_key = [int(i, 2) for i in bin_key]
     if len(bin_key) < 64:
         bin_key.extend([0 for i in range(64 - len(bin_key))])
-    print("bin_key: ", bin_key)
-    print(len(bin_key))
+    #print("bin_key: ", bin_key)
+    #print(len(bin_key))
     # Convert plaintext to binary
     #bin_text = [int(i, 2) for i in bin(bytes)[2:]]
     bin_text = ''.join([bin(byte)[2:].zfill(8) for byte in text])
+    print("bin_text: ", bin_text[:20])
     bin_text = [int(i, 2) for i in bin_text]
+    print("bin next: ", bin_text[:20])
+    
     # Each block is 64 bits, so cut off the last block if it's less than 64 bits and pad with zeros
-    if len(bin_text) % 64 != 0:
-        bin_text.extend([ 0 for i in range((64 - len(bin_text) % 64))])
+    #buffer = 64 - len(bin_text) % 64
+    #if len(bin_text) % 64 != 0:
+    #    bin_text.extend([ 0 for i in range((64 - len(bin_text) % 64))])
     # Split plaintext into blocks
     blocks = [bin_text[i:i+64] for i in range(0, len(bin_text), 64)]
     # XOR first block with iv
@@ -271,12 +299,13 @@ def des_cbc(iv, key, text, mode='encrypt'):
         if i < len(blocks) - 1:
             blocks[i+1] = [x ^ y for x, y in zip(blocks[i], blocks[i+1])]
     # Convert blocks to byte array
-    byte_array = []
-    for block in blocks:
-        byte_array.extend([int(''.join([str(b) for b in block[i:i+8]]), 2) for i in range(0, 64, 8)])
+    #for block in blocks:
+    #    byte_array.extend([int(''.join([str(b) for b in block[i:i+8]]), 2) for i in range(0, 64, 8)])
     #flattened = np.array(blocks).flatten()
-
-    return np.array(byte_array).flatten().tolist()
+    #print("blocks: ", np.array(blocks).flatten())
+    flat_blocks = np.array(blocks).flatten()#[:-buffer]
+    byte_blocks = np.array([int(''.join([str(b) for b in flat_blocks[i:i+8]]), 2) for i in range(0, len(flat_blocks), 8)])
+    return byte_blocks
 
 
 if __name__ == '__main__':
@@ -301,11 +330,18 @@ if __name__ == '__main__':
     """
     image = load_image_bytes('doge.jpeg')
     #key = [int(i, 2) for i in  bin(int("0123456789ABCDEF", 16))[2:].zfill(64)]
+    #"""
     key = b'key'
     iv = [0 for i in range(64)]
-    print(image)
+    #print(image)
+    #print("image: ", image[:20])
     encrypted = des_cbc(iv, key, image)
     print("encrypted: ", encrypted)
     decrypted = des_cbc(iv, key, encrypted, mode='decrypt')
-    print("decrypted: ", decrypted)
+    print("decrypted: ", decrypted[:20])
     print("decrypted same as image: ", decrypted == image)
+    #"""
+    #print("decrypted same as image: ", decrypted == image)
+    img = Image.open(io.BytesIO(decrypted))
+    #img = Image.frombytes('RGB', (width, height), image)
+    img.show()
