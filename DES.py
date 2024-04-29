@@ -25,7 +25,7 @@ def image_to_byte_array(image:Image, dimensions, format='PNG', block_size=64):
     for i in range(info_pad):
         info_block += b'\x00'
     
-    imgByteArr = imgByteArr + info_block
+    #imgByteArr = imgByteArr + info_block
     
     return imgByteArr
 
@@ -42,7 +42,7 @@ def load_image_bytes(image_path):
     np_array = np.frombuffer(byte_array, dtype=np.uint8)
     #img_format = image.format
 
-    return np_array
+    return np_array, width, height
 
 
 # Initial permutation - permute key bit locations
@@ -281,21 +281,11 @@ def des_cbc_enc(iv, key, text):
     bin_key = [int(i, 2) for i in bin_key]
     if len(bin_key) < 64:
         bin_key.extend([0 for i in range(64 - len(bin_key))])
-    #print("bin_key: ", bin_key)
-    #print(len(bin_key))
-    # Convert plaintext to binary
-    #bin_text = [int(i, 2) for i in bin(bytes)[2:]]
-    """
+
     bin_text = ''.join([bin(byte)[2:].zfill(8) for byte in text])
-    print("bin_text: ", len(bin_text))
     bin_text = [int(i, 2) for i in bin_text]
-    print("bin next: ", len(bin_text))
-    """
-    # Each block is 64 bits, so cut off the last block if it's less than 64 bits and pad with zeros
-    #buffer = 64 - len(bin_text) % 64
-    #if len(bin_text) % 64 != 0:
-    #    bin_text.extend([ 0 for i in range((64 - len(bin_text) % 64))])
-    bin_text = text
+
+    #bin_text = text
     # Split plaintext into blocks
     blocks = [bin_text[i:i+64] for i in range(0, len(bin_text), 64)]
     # XOR first block with iv
@@ -308,20 +298,10 @@ def des_cbc_enc(iv, key, text):
         cipher_block = des(bin_key, xor_res, 'encrypt')
         crypted.append(cipher_block)
         init_v = cipher_block
-        """
-        blocks[i] = des(bin_key, blocks[i], 'encrypt')
-        # XOR with previous block
-        if i < len(blocks) - 1:
-            blocks[i+1] = [x ^ y for x, y in zip(blocks[i], blocks[i+1])]
-        """
-    # Convert blocks to byte array
-    #for block in blocks:
-    #    byte_array.extend([int(''.join([str(b) for b in block[i:i+8]]), 2) for i in range(0, 64, 8)])
-    #flattened = np.array(blocks).flatten()
-    #print("blocks: ", np.array(blocks).flatten())
+
     flat_blocks = np.array(crypted).flatten()#[:-buffer]
-    #byte_blocks = np.array([int(''.join([str(b) for b in flat_blocks[i:i+8]]), 2) for i in range(0, len(flat_blocks), 8)])
-    return flat_blocks
+    byte_blocks = np.array([int(''.join([str(b) for b in flat_blocks[i:i+8]]), 2) for i in range(0, len(flat_blocks), 8)])
+    return byte_blocks
 
 def des_cbc_dec(iv, key, text):
     print(len(text))
@@ -330,60 +310,39 @@ def des_cbc_dec(iv, key, text):
     bin_key = [int(i, 2) for i in bin_key]
     if len(bin_key) < 64:
         bin_key.extend([0 for i in range(64 - len(bin_key))])
-    #print("bin_key: ", bin_key)
-    #print(len(bin_key))
-    # Convert plaintext to binary
-    #bin_text = [int(i, 2) for i in bin(bytes)[2:]]
-    """
+    # Convert bytes to binary
     bin_text = ''.join([bin(byte)[2:].zfill(8) for byte in text])
     print("bin_text: ", len(bin_text))
     bin_text = [int(i, 2) for i in bin_text]
     print("bin next: ", len(bin_text))
-    """
-    # Each block is 64 bits, so cut off the last block if it's less than 64 bits and pad with zeros
-    #buffer = 64 - len(bin_text) % 64
-    #if len(bin_text) % 64 != 0:
-    #    bin_text.extend([ 0 for i in range((64 - len(bin_text) % 64))])
-    bin_text = text
+    #bin_text = text
     # Split plaintext into blocks
     blocks = [bin_text[i:i+64] for i in range(0, len(bin_text), 64)]
     # XOR first block with iv
     crypted = []
     init_v = iv
-    #blocks[0] = [x ^ y for x, y in zip(blocks[0], iv)]
     # Encrypt each block
     for i in range(len(blocks)):
         cipher_block = des(bin_key, blocks[i], 'decrypt')
         xor_res = [x ^ y for x, y in zip(cipher_block, init_v)]
         crypted.append(xor_res)
         init_v = blocks[i]
-        """
-        blocks[i] = des(bin_key, blocks[i], 'encrypt')
-        # XOR with previous block
-        if i < len(blocks) - 1:
-            blocks[i+1] = [x ^ y for x, y in zip(blocks[i], blocks[i+1])]
-        """
-    # Convert blocks to byte array
-    #for block in blocks:
-    #    byte_array.extend([int(''.join([str(b) for b in block[i:i+8]]), 2) for i in range(0, 64, 8)])
-    #flattened = np.array(blocks).flatten()
-    #print("blocks: ", np.array(blocks).flatten())
-    flat_blocks = np.array(crypted).flatten()#[:-buffer]
-    #byte_blocks = np.array([int(''.join([str(b) for b in flat_blocks[i:i+8]]), 2) for i in range(0, len(flat_blocks), 8)])
-    return flat_blocks
+
+    flat_blocks = np.array(crypted).flatten()
+    byte_blocks = np.array([int(''.join([str(b) for b in flat_blocks[i:i+8]]), 2) for i in range(0, len(flat_blocks), 8)])
+    return byte_blocks
 
 
 
 
 if __name__ == '__main__':
-    image = load_image_bytes('doge.png')
-    #key = [int(i, 2) for i in  bin(int("0123456789ABCDEF", 16))[2:].zfill(64)]
-    #"""
+    image, width, height = load_image_bytes('doge.png')
     key = b'key'
     iv = [0 for i in range(64)]
     #print(image)
-    print("image: ", image[:20])
+    print("image: ", image[2000:2020])
     print("image length: ", len(image))
+    """
     test = "this is a test string to see if this works "
     bits = [int(i, 2) for i in ''.join(format(ord(char), '08b') for char in test)]
     original = bits[:]
@@ -391,24 +350,25 @@ if __name__ == '__main__':
     pad = 64 - len(bits) % 64
     if len(bits) % 64 != 0:
         bits.extend([0 for i in range(64 - len(bits) % 64)])
-    encrypted = des_cbc_enc(iv, key, bits)
+    """
+    encrypted = des_cbc_enc(iv, key, image)
 
-    print("encrypted: ", encrypted[:20])
+    print("encrypted: ", encrypted[2000:2020])
     print("encrypted length: ", len(encrypted))
+    """
     binary_string = ''.join(map(str, encrypted))
     text = ''.join(chr(int(binary_string[i:i+8], 2)) for i in range(0, len(binary_string), 8))
     print("encrypted: ", text)
-
+    """
     decrypted = des_cbc_dec(iv, key, encrypted)
-    print("decrypted: ", decrypted[:20])
-
+    print("decrypted: ", decrypted[2000:2020])
+    """
     decrypted = decrypted[:-pad]
     binary_string = ''.join(map(str, decrypted))
     text = ''.join(chr(int(binary_string[i:i+8], 2)) for i in range(0, len(binary_string), 8))
     print("text: ", text)
-
-    #"""
+    """
     #print("decrypted same as image: ", decrypted == image)
-    #img = Image.open(io.BytesIO(decrypted))
-    #img = Image.frombytes('RGB', (width, height), image)
-    #img.show()
+    image = Image.frombytes("RGB", (width, height), decrypted)
+    image.save('doge2.png', format="PNG")
+    image.show()
