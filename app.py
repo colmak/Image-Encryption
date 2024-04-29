@@ -3,7 +3,7 @@ import random
 import sys
 
 from PIL import Image
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QFileDialog, QSizePolicy, QLineEdit
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QFileDialog, QSizePolicy, QLineEdit, QTextEdit
 from PyQt5.QtGui import QPixmap
 
 import AES
@@ -73,6 +73,19 @@ class ImageEncryptor(QWidget):
             self.encryptTextButton.hide()
             self.layout.addWidget(self.encryptTextButton)
             self.encryptTextButton.setStyleSheet("font-size: 20px")
+            
+            self.decryptTextButton = QPushButton('Decrypt Text')
+            self.decryptTextButton.clicked.connect(self.decryptText)
+            self.decryptTextButton.hide()
+            self.layout.addWidget(self.decryptTextButton)
+            self.decryptTextButton.setStyleSheet("font-size: 20px")
+            
+            self.outputTextBox = QTextEdit()
+            self.outputTextBox.setReadOnly(True)
+            self.outputTextBox.hide()
+            self.layout.addWidget(self.outputTextBox)
+            self.outputTextBox.setStyleSheet("font-size: 20px")
+            
                     
 
     def aesStart(self):
@@ -89,10 +102,18 @@ class ImageEncryptor(QWidget):
         
     def encryptText(self):
         """Encrypt the text from the text box."""
-        text = self.textBox.text()
+        encryptedText = self.textBox.text()
+        self.decryptTextButton.show()
+        self.outputTextBox.show()
+        self.outputTextBox.setText("Text Encrypted: " + encryptedText)
         # Perform the encryption here
-        encrypted_text = text  # Replace this with actual encryption
-        print(f"Encrypted text: {encrypted_text}")
+        encrypted_text = encryptedText  # Replace this with actual encryption
+
+    def decryptText(self):
+        decryptedText = self.textBox.text()
+        self.outputTextBox.show()
+        self.outputTextBox.setText("Text Decrypted: " + decryptedText)
+        pass
 
     def uploadImage(self):
         """Upload an image."""
