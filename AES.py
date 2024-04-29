@@ -446,20 +446,6 @@ if __name__ == "__main__":
     image = Image.open('test.png')
     plaintext = image_to_byte_array(image)
 
-    # # Convert the byte array to a hexadecimal string
-    # hex_string = binascii.hexlify(plaintext).decode()
-
-    # # Split the hexadecimal string into chunks of 32 characters
-    # chunks = [hex_string[i:i+32] for i in range(0, len(hex_string), 32)]
-
-    # # Join the chunks with line breaks to match the given format
-    # formatted_hex_string = "'".join(chunks)
-
-    # # Add the opening and closing quotes
-    # formatted_hex_string = "'" + formatted_hex_string + "'"
-
-    # print(f"Plaintext: {plaintext.hex()[:100]}...")
-
     # plaintext = bytearray.fromhex('00112233445566778899aabbccddeefd')
     # # AES key must be either 16 bytes long
     # key = bytearray.fromhex('000102030405060708090a0b0c0d0e0f')
