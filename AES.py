@@ -3,14 +3,11 @@ AES Encryption and Decryption in CBC Mode
 By Roland Van Duine
 """
 
-
 from collections import deque
 import operator
 import os
 from PIL import Image
-import numpy as np
 import io
-import re
 from typing import List
 import math
 
