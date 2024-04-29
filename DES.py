@@ -1,49 +1,17 @@
+"""
+DES Encryption and Decryption in CBC Mode
+By Sean Clifford
+"""
+
 from PIL import Image
 import numpy as np
 import io
 import random
 
-
-def image_to_byte_array(image:Image, dimensions, format='PNG', block_size=64):
-    imgByteArr = io.BytesIO()
-    image.save(imgByteArr, format=format)
-    imgByteArr = imgByteArr.getvalue()
-
-    # Add padding if necessary
-    """
-    pad_len = len(imgByteArr) % block_size//8
-    print(pad_len)
-    for i in range(pad_len):
-        imgByteArr += b'\x00'
-    # Add infomation block about padding and image size
-    width, height = dimensions
-    info_block = bytearray()
-    info_block += width.to_bytes(2, byteorder='big')
-    info_block += height.to_bytes(2, byteorder='big')
-    info_block += pad_len.to_bytes(1, byteorder='big')
-
-    info_pad = (block_size // 8) - len(info_block)
-    for i in range(info_pad):
-        info_block += b'\x00'
-    """
-    #imgByteArr = imgByteArr + info_block
-    
-    return imgByteArr
-
-
-def load_image_bytes(image_path):
-    # Open the image and convert it to byte array
-    image = Image.open(image_path)
-    # Get image size
-    width, height = image.size
-
-    byte_array = image_to_byte_array(image, (width, height))
-
-    # Convert the byte array to a numpy array
-    np_array = np.frombuffer(byte_array, dtype=np.uint8)
-    #img_format = image.format
-
-    return np_array, width, height
+# references
+# https://www.upgrad.com/tutorials/software-engineering/software-key-tutorial/des-algorithm/
+# https://page.math.tu-berlin.de/~kant/teaching/hess/krypto-ws2006/des.htm
+# https://csrc.nist.gov/files/pubs/fips/46-3/final/docs/fips46-3.pdf
 
 
 # Initial permutation - permute key bit locations
@@ -63,6 +31,7 @@ def key_permutation(key):
     permuted = [key[i] for i in PC_1]
     return permuted
 
+# Key compression - compress key to 48 bits
 def key_compression(key):
     PC_2 = [
         13, 16, 10, 23, 0, 4,
@@ -89,7 +58,7 @@ def key_transformation(left, right, round):
 
     return left_shifted.tolist(), right_shifted.tolist()
 
-# Expansion permutation
+# Expansion permutation - expand block to 48 bits
 def expansion(block):
     expansion_table = [
         31,  0,  1,  2,  3,  4,
@@ -109,7 +78,7 @@ def expansion(block):
 def xor(block1, block2):
     return [x ^ y for x, y in zip(block1, block2)]
 
-# s box substitution
+# s box substitution - substitute 48 bits with 32 bits
 def s_box(block):
     sub_box = [    
         [[14, 4, 13, 1, 2, 15, 11, 8, 3, 10, 6, 12, 5, 9, 0, 7],
@@ -174,6 +143,7 @@ def s_box(block):
         s_boxes.extend([int(b) for b in bin_val])
     return s_boxes
 
+# Permutation box - permute block bit locations
 def p_box(block):
     P = [
         15, 6, 19, 20, 28, 11, 27, 16, 
@@ -185,7 +155,7 @@ def p_box(block):
     permuted = [block[i] for i in P]
     return permuted
     
-
+# Final permutation - permute block bit locations
 def final_permutation(block):
     FP = [
 		39,  7, 47, 15, 55, 23, 63, 31,
@@ -201,6 +171,7 @@ def final_permutation(block):
     permuted = [block[i] for i in FP]
     return permuted
 
+# Key generation - generate 16 subkeys
 def key_generation(key):
     # Initial permutation
     key_p = key_permutation(key)
@@ -217,6 +188,7 @@ def key_generation(key):
         
     return sub_keys
 
+# Initial permutation - permute block bit locations
 def initial_permutation(block):
     IP = [
         57, 49, 41, 33, 25, 17, 9,  1,
@@ -270,7 +242,7 @@ def des(key, pt_block, mode='encrypt'):
     final_permute = final_permutation(right + left)
     return final_permute
 
-
+# Encrypt plaintext using DES in CBC mode - encrypts each block
 def des_cbc_enc(iv, key, text):
     # Convert bits to full bytes then back to bits
     bin_text = ''.join([bin(byte)[2:].zfill(8) for byte in text])
@@ -293,7 +265,7 @@ def des_cbc_enc(iv, key, text):
     byte_blocks = np.array([int(''.join([str(b) for b in flat_blocks[i:i+8]]), 2) for i in range(0, len(flat_blocks), 8)])
     return byte_blocks
 
-
+# Decrypt using CBC mode - decrypt each block and XOR with iv or previous block
 def des_cbc_dec(iv, key, text):
     # Convert bits to full bytes then back to bits
     bin_text = ''.join([bin(byte)[2:].zfill(8) for byte in text])
