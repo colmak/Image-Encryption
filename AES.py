@@ -39,7 +39,7 @@ def encrpyted_byte_array_to_image(byte_array, original_image_size, mode='RGB', i
     """
     Encrypted byte array to image
     """
-    required_size = original_image_size[0] * original_image_size[1] * 3  # 3 for RGB
+    required_size = original_image_size[0] * original_image_size[1] * 3 
     while len(byte_array) < required_size:
         byte_array += byte_array[:required_size - len(byte_array)]
     
