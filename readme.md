@@ -85,9 +85,4 @@ pip install pillow pyqt5
 - Ensure that the custom `AES` and `DES` modules are implemented correctly with the required methods.
 - This application is for demonstration purposes and may not be suitable for production use without further security considerations.
 
-## License
-This project is licensed under the MIT License. Feel free to use and modify the code.
-
-## Contact
-For issues or contributions, please contact the author at [your-email@example.com].
 
